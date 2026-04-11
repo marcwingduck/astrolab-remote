@@ -43,6 +43,7 @@ function initSideControls() {
         var wInput = document.getElementById('w' + cardinal);
         var dragging = false;
         var moved = false;
+        var startX, startY;
 
         function updateWhite(value) {
             wInput.value = value;
@@ -68,19 +69,27 @@ function initSideControls() {
         control.addEventListener('pointerdown', function (e) {
             dragging = true;
             moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
             control.setPointerCapture(e.pointerId);
             e.preventDefault();
         });
 
         control.addEventListener('pointermove', function (e) {
             if (!dragging) return;
-            moved = true;
-            updateWhite(getValueFromEvent(e));
+            var dx = e.clientX - startX;
+            var dy = e.clientY - startY;
+            if (dx * dx + dy * dy > 25) moved = true;
+            if (moved) updateWhite(getValueFromEvent(e));
         });
 
         control.addEventListener('pointerup', function (e) {
             if (!moved) {
-                colorInput.click();
+                if (colorInput.showPicker) {
+                    colorInput.showPicker();
+                } else {
+                    colorInput.click();
+                }
             }
             dragging = false;
             moved = false;
