@@ -3,12 +3,12 @@ var ws = null;
 function webreplConnect(url, password) {
     ws = new WebSocket(url);
     ws.onopen = function () {
-        ws.onmessage = function () {};
+        ws.onmessage = function () { };
         ws.send(password + '\r\n');
         ws.send('\x03');
         updateStatus();
     };
-    ws.onclose = function () { updateStatus(); };
+    ws.onclose = function () { ws = null; updateStatus(); };
     ws.onerror = function () { updateStatus(); };
 }
 
@@ -23,14 +23,14 @@ function hex2rgb(hex, w) {
 
 function updateStatus() {
     var el = document.querySelector('#status');
-    if (!ws) {
-        el.textContent = "null";
-    } else if (ws.readyState === ws.OPEN) {
-        el.textContent = "Open";
-    } else if (ws.readyState === ws.CLOSED) {
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
         el.textContent = "Closed";
+    } else if (ws.readyState === WebSocket.OPEN) {
+        el.textContent = "Open";
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+        el.textContent = "Connecting";
     } else {
-        el.textContent = "¯\\_(ツ)_/¯";
+        el.textContent = "Closing";
     }
 }
 
@@ -47,7 +47,12 @@ function resizeVerticalSliders() {
     });
 }
 
+function wsSend(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+}
+
 function connect() {
+    if (ws) ws.close();
     var boardURL = document.querySelector('#boardURL').value;
     var password = document.querySelector('#password').value;
     webreplConnect(boardURL, password);
@@ -92,10 +97,8 @@ function parseAndExec(text) {
         .replace('{west}', w)
         .replace('{frequency}', f)
         .replace('{index}', i);
-    if (ws) {
-        ws.send('paris.stop_timer()\r\n');
-        ws.send('paris.' + fn + '\r\n');
-    }
+    wsSend('paris.stop_timer()\r\n');
+    wsSend('paris.' + fn + '\r\n');
 }
 
 function toggleCollapse(id) {
@@ -112,11 +115,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelector('#password').value = 'pvris';
     document.querySelector('#password').addEventListener('keypress', function (event) {
-        if (event.keyCode === 13) connect();
+        if (event.key === 'Enter') connect();
     });
 
     document.querySelector('#open').addEventListener('click', connect);
-    document.querySelector('#close').addEventListener('click', function () { if (ws) ws.close(); });
+    document.querySelector('#close').addEventListener('click', function () { if (ws) { ws.close(); ws = null; } });
 
     connect();
 
@@ -128,66 +131,56 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelector('#btn-solunar').addEventListener('click', function () {
-        if (ws) ws.send('paris.run_solunar()\r\n');
+        wsSend('paris.run_solunar()\r\n');
     });
 
     document.querySelector('#btn-clock').addEventListener('click', function () {
         var continuous = document.querySelector('#clk_continuous').checked ? 'True' : 'False';
-        if (ws) ws.send('paris.run_cls_clock(' + continuous + ')\r\n');
+        wsSend('paris.run_cls_clock(' + continuous + ')\r\n');
     });
 
     document.querySelector('#btn-clock2').addEventListener('click', function () {
         var start_at_minute = document.querySelector('#clk_start_at_minute').checked ? 'True' : 'False';
         var two_colors = document.querySelector('#clk_two_colors').checked ? 'True' : 'False';
         var ambient = document.querySelector('#clk_ambient').checked ? 'True' : 'False';
-        if (ws) ws.send('paris.run_neo_clock(' + start_at_minute + ',' + two_colors + ',' + ambient + ')\r\n');
+        wsSend('paris.run_neo_clock(' + start_at_minute + ',' + two_colors + ',' + ambient + ')\r\n');
     });
 
     document.querySelector('#btn-ambient').addEventListener('click', function () {
-        if (ws) {
-            ws.send('paris.stop_timer()\r\n');
-            ws.send("paris.ambient()\r\n");
-        }
+        wsSend('paris.stop_timer()\r\n');
+        wsSend('paris.ambient()\r\n');
     });
 
     document.querySelector('#btn-focus').addEventListener('click', function () {
-        if (ws) {
-            ws.send('paris.stop_timer()\r\n');
-            ws.send('paris.set_sides((0,32,127,0),(0,32,127,0),(0,0,0,127),(0,32,127,0),False)\r\n');
-        }
+        wsSend('paris.stop_timer()\r\n');
+        wsSend('paris.set_sides((0,32,127,0),(0,32,127,0),(0,0,0,127),(0,32,127,0),False)\r\n');
     });
 
     document.querySelector('#btn-vertical').addEventListener('click', function () {
         var fn = 'set_sides(' + getColor('north') + ',(0,0,0,0),' + getColor('south') + ',(0,0,0,0),True)';
-        if (ws) {
-            ws.send('paris.stop_timer()\r\n');
-            ws.send('paris.' + fn + '\r\n');
-        }
+        wsSend('paris.stop_timer()\r\n');
+        wsSend('paris.' + fn + '\r\n');
     });
 
     document.querySelector('#btn-horizontal').addEventListener('click', function () {
         var fn = 'set_sides((0,0,0,0),' + getColor('east') + ',(0,0,0,0),' + getColor('west') + ',True)';
-        if (ws) {
-            ws.send('paris.stop_timer()\r\n');
-            ws.send('paris.' + fn + '\r\n');
-        }
+        wsSend('paris.stop_timer()\r\n');
+        wsSend('paris.' + fn + '\r\n');
     });
 
     document.querySelector('#btn-circle').addEventListener('click', function () {
-        if (ws) ws.send('paris.stop_timer()\r\n');
+        wsSend('paris.stop_timer()\r\n');
         parseAndExec('set_sides({north},{east},{south},{west},False)');
     });
 
     document.querySelector('#btn-square').addEventListener('click', function () {
-        if (ws) ws.send('paris.stop_timer()\r\n');
+        wsSend('paris.stop_timer()\r\n');
         parseAndExec('set_sides({north},{east},{south},{west},True)');
     });
 
     document.querySelector('#btn-sleep').addEventListener('click', function () {
-        if (ws) {
-            ws.send('paris.stop_timer()\r\n');
-            ws.send('paris.off()\r\n');
-        }
+        wsSend('paris.stop_timer()\r\n');
+        wsSend('paris.off()\r\n');
     });
 
     document.querySelector('#btn-larson').addEventListener('click', function () {
@@ -199,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.querySelector('#dimmer').addEventListener('change', function (e) {
-        if (ws) ws.send('paris.apply_dimmer(' + e.target.value + ')\r\n');
+        wsSend('paris.apply_dimmer(' + e.target.value + ')\r\n');
     });
 
     resizeVerticalSliders();
