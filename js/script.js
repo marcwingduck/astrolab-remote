@@ -34,16 +34,59 @@ function updateStatus() {
     }
 }
 
-function resizeVerticalSliders() {
-    ['#wwest', '#weast'].forEach(function (sel) {
-        var slider = document.querySelector(sel);
-        var parent = slider.parentElement;
-        var pw = parent.offsetWidth;
-        var ph = parent.offsetHeight;
-        slider.style.width = ph + 'px';
-        slider.style.height = pw + 'px';
-        slider.style.left = (pw / 2 - ph / 2) + 'px';
-        slider.style.top = (ph / 2 - pw / 2) + 'px';
+function initSideControls() {
+    document.querySelectorAll('.side-control').forEach(function (control) {
+        var cardinal = control.dataset.cardinal;
+        var axis = control.dataset.axis;
+        var colorInput = control.querySelector('input[type="color"]');
+        var whiteDiv = control.querySelector('.side-control-white');
+        var wInput = document.getElementById('w' + cardinal);
+        var dragging = false;
+        var moved = false;
+
+        function updateWhite(value) {
+            wInput.value = value;
+            var pct = (value / 255) * 100 + '%';
+            if (axis === 'x') {
+                whiteDiv.style.width = pct;
+            } else {
+                whiteDiv.style.height = pct;
+            }
+        }
+
+        function getValueFromEvent(e) {
+            var rect = control.getBoundingClientRect();
+            var value;
+            if (axis === 'x') {
+                value = Math.round(((e.clientX - rect.left) / rect.width) * 255);
+            } else {
+                value = Math.round(((rect.bottom - e.clientY) / rect.height) * 255);
+            }
+            return Math.max(0, Math.min(255, value));
+        }
+
+        control.addEventListener('pointerdown', function (e) {
+            dragging = true;
+            moved = false;
+            control.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+
+        control.addEventListener('pointermove', function (e) {
+            if (!dragging) return;
+            moved = true;
+            updateWhite(getValueFromEvent(e));
+        });
+
+        control.addEventListener('pointerup', function (e) {
+            if (!moved) {
+                colorInput.click();
+            }
+            dragging = false;
+            moved = false;
+        });
+
+        updateWhite(parseInt(wInput.value));
     });
 }
 
@@ -64,7 +107,8 @@ function updateColor(object) {
     else if (object.id === "rgbeast") direction = "to right";
     else if (object.id === "rgbsouth") direction = "to bottom";
     else if (object.id === "rgbwest") direction = "to left";
-    object.parentElement.style.backgroundImage = "linear-gradient(" + direction + "," + object.value + ", rgba(0,0,0,0))";
+    var colorDiv = object.closest('.side-control').querySelector('.side-control-color');
+    colorDiv.style.backgroundImage = "linear-gradient(" + direction + "," + object.value + ", rgba(0,0,0,0))";
 }
 
 function powerPlug(power) {
@@ -195,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
         wsSend('paris.apply_dimmer(' + e.target.value + ')\r\n');
     });
 
-    resizeVerticalSliders();
+    initSideControls();
 
     ['rgbnorth', 'rgbeast', 'rgbsouth', 'rgbwest'].forEach(function (id) {
         var picker = document.getElementById(id);
@@ -204,4 +248,3 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-window.addEventListener('resize', resizeVerticalSliders);
