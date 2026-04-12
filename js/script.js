@@ -100,6 +100,7 @@ function initSideControls() {
 }
 
 function wsSend(msg) {
+    console.log(msg);
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
 }
 
