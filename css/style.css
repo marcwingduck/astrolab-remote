@@ -158,6 +158,7 @@ input[type="range"]::-moz-range-thumb {
 .map-center {
     grid-column: 2;
     grid-row: 2;
+    position: relative;
 }
 
 .map-east {

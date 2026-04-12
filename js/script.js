@@ -100,8 +100,10 @@ function initSideControls() {
 }
 
 function wsSend(msg) {
-    console.log(msg);
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(msg);
+        ws.send(msg);
+    }
 }
 
 function connect() {
@@ -253,6 +255,25 @@ document.addEventListener('DOMContentLoaded', function () {
         var picker = document.getElementById(id);
         updateColor(picker);
         picker.addEventListener('change', function () { updateColor(this); });
+    });
+
+    document.getElementById('btn-all-color').addEventListener('click', function () {
+        document.getElementById('rgball').showPicker();
+    });
+
+    document.getElementById('rgball').addEventListener('change', function () {
+        ['north', 'east', 'south', 'west'].forEach(function (dir) {
+            var picker = document.getElementById('rgb' + dir);
+            picker.value = document.getElementById('rgball').value;
+            updateColor(picker);
+            var wInput = document.getElementById('w' + dir);
+            wInput.value = 0;
+            var whiteDiv = document.querySelector('[data-cardinal="' + dir + '"] .side-control-white');
+            if (whiteDiv) {
+                var axis = document.querySelector('[data-cardinal="' + dir + '"]').dataset.axis;
+                whiteDiv.style[axis === 'x' ? 'width' : 'height'] = '0';
+            }
+        });
     });
 });
 
