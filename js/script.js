@@ -139,22 +139,27 @@ function getColor(cardinal) {
     return hex2rgb(document.getElementById('rgb' + cardinal).value, parseInt(document.getElementById('w' + cardinal).value));
 }
 
+// fills in the current colors, frequency and led index
+function fill(text) {
+    return text
+        .replace('{north}', getColor('north'))
+        .replace('{east}', getColor('east'))
+        .replace('{south}', getColor('south'))
+        .replace('{west}', getColor('west'))
+        .replace('{frequency}', parseFloat(document.getElementById('frequency').value))
+        .replace('{index}', parseFloat(document.getElementById('index').value));
+}
+
+// switches the map to a mode by name, with its arguments; the board stops whatever runs
+function show(name) {
+    var args = ["'" + name + "'"].concat(Array.prototype.slice.call(arguments, 1));
+    wsSend('paris.show(' + args.join(',') + ')\r\n');
+}
+
+// runs a test function, e.g. test_led(3)
 function parseAndExec(text) {
-    var n = getColor('north');
-    var e = getColor('east');
-    var s = getColor('south');
-    var w = getColor('west');
-    var f = parseFloat(document.getElementById('frequency').value);
-    var i = parseFloat(document.getElementById('index').value);
-    var fn = text
-        .replace('{north}', n)
-        .replace('{east}', e)
-        .replace('{south}', s)
-        .replace('{west}', w)
-        .replace('{frequency}', f)
-        .replace('{index}', i);
     wsSend('paris.stop_timer()\r\n');
-    wsSend('paris.' + fn + '\r\n');
+    wsSend('paris.' + fill(text) + '\r\n');
 }
 
 function toggleCollapse(id) {
@@ -185,64 +190,55 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('btn-solunar').addEventListener('click', function () {
-        wsSend('paris.run_solunar()\r\n');
+        show('solunar');
     });
 
     document.getElementById('btn-clock').addEventListener('click', function () {
         var continuous = document.getElementById('clk_continuous').checked ? 'True' : 'False';
-        wsSend('paris.run_cls_clock(' + continuous + ')\r\n');
+        show('clock', continuous);
     });
 
     document.getElementById('btn-clock2').addEventListener('click', function () {
         var start_at_minute = document.getElementById('clk_start_at_minute').checked ? 'True' : 'False';
         var two_colors = document.getElementById('clk_two_colors').checked ? 'True' : 'False';
         var ambient = document.getElementById('clk_ambient').checked ? 'True' : 'False';
-        wsSend('paris.run_neo_clock(' + start_at_minute + ',' + two_colors + ',' + ambient + ')\r\n');
+        show('neo', start_at_minute, two_colors, ambient);
     });
 
     document.getElementById('btn-ambient').addEventListener('click', function () {
-        wsSend('paris.stop_timer()\r\n');
-        wsSend('paris.ambient()\r\n');
+        show('ambient');
     });
 
     document.getElementById('btn-focus').addEventListener('click', function () {
-        wsSend('paris.stop_timer()\r\n');
-        wsSend('paris.set_sides((0,32,127,0),(0,32,127,0),(0,0,0,127),(0,32,127,0),False)\r\n');
+        show('sides', '(0,32,127,0)', '(0,32,127,0)', '(0,0,0,127)', '(0,32,127,0)', 'False');
     });
 
     document.getElementById('btn-vertical').addEventListener('click', function () {
-        var fn = 'set_sides(' + getColor('north') + ',(0,0,0,0),' + getColor('south') + ',(0,0,0,0),True)';
-        wsSend('paris.stop_timer()\r\n');
-        wsSend('paris.' + fn + '\r\n');
+        show('sides', getColor('north'), '(0,0,0,0)', getColor('south'), '(0,0,0,0)', 'True');
     });
 
     document.getElementById('btn-horizontal').addEventListener('click', function () {
-        var fn = 'set_sides((0,0,0,0),' + getColor('east') + ',(0,0,0,0),' + getColor('west') + ',True)';
-        wsSend('paris.stop_timer()\r\n');
-        wsSend('paris.' + fn + '\r\n');
+        show('sides', '(0,0,0,0)', getColor('east'), '(0,0,0,0)', getColor('west'), 'True');
     });
 
     document.getElementById('btn-circle').addEventListener('click', function () {
-        wsSend('paris.stop_timer()\r\n');
-        parseAndExec('set_sides({north},{east},{south},{west},False)');
+        show('sides', getColor('north'), getColor('east'), getColor('south'), getColor('west'), 'False');
     });
 
     document.getElementById('btn-square').addEventListener('click', function () {
-        wsSend('paris.stop_timer()\r\n');
-        parseAndExec('set_sides({north},{east},{south},{west},True)');
+        show('sides', getColor('north'), getColor('east'), getColor('south'), getColor('west'), 'True');
     });
 
     document.getElementById('btn-sleep').addEventListener('click', function () {
-        wsSend('paris.stop_timer()\r\n');
-        wsSend('paris.off()\r\n');
+        show('off');
     });
 
     document.getElementById('btn-larson').addEventListener('click', function () {
-        parseAndExec('run_larson_scanner(\'south\',(0,255,0,0),(0,0,0,0))');
+        show('larson', "'south'", '(0,255,0,0)', '(0,0,0,0)');
     });
 
     document.getElementById('btn-spin').addEventListener('click', function () {
-        parseAndExec('run_spin({north},{frequency})');
+        show('spin', getColor('north'), parseFloat(document.getElementById('frequency').value));
     });
 
     document.getElementById('dimmer').addEventListener('change', function (e) {
