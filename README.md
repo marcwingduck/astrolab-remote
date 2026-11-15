@@ -1,6 +1,6 @@
 # Astrolab Remote
 
-The web app that controls [Astrolab](https://github.com/marcwingduck/astrolab), my ESP8266 celestial map of Paris, from the home WiFi: http://solar.marclieser.de/
+The web app that controls [Astrolab](https://github.com/marcwingduck/astrolab), my ESP8266 celestial map of Paris, from the home WiFi: http://astrolab.marclieser.de/
 
 It is served over plain HTTP on purpose: an HTTPS page may not open the board's unencrypted `ws://` connection.
 

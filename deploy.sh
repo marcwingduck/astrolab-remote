@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# deploy.sh - build the web app into a temporary folder and sync it to solar.marclieser.de via
+# deploy.sh - build the web app into a temporary folder and sync it to astrolab.marclieser.de via
 # SFTP (or FTPS). The build only renames css and js after their content (style.<hash>.css) and points
 # index.html there, so browsers never use old css or js. index.html carries the build's version
 # and checks version.txt on load, so a cached old page replaces itself (the server ignores
