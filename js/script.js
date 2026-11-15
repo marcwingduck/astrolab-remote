@@ -23,7 +23,7 @@ function webreplConnect(url, password) {
     };
     ws.onmessage = function (e) { if (typeof e.data === 'string') receive(e.data); };
     ws.onclose = function () {
-        if (!opened) showError('Board not reachable at ' + url);
+        if (!opened && !this.leaving) showError('Board not reachable at ' + url);
         pending = [];      // not sent later, all at once: a new click reconnects
         if (ws === this) ws = null;  // an older socket closing late leaves the new one alone
         updateStatus();
@@ -280,4 +280,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     select(cardinals.slice());
     connect();
+
+    // A page in the background (another tab, the phone locked) lets go of the board: the webrepl
+    // takes only one connection, so an open tab no longer blocks deploys or debugging. Coming back
+    // reconnects.
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            if (ws) {
+                ws.leaving = true;  // closed on purpose: no "not reachable"
+                ws.close();
+                ws = null;
+            }
+        } else if (!ws) {
+            connect();
+        }
+    });
 });
