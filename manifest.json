@@ -1,11 +1,11 @@
 {
-    "name": "Celestial Map",
-    "short_name": "Celestial Map",
+    "name": "Astrolab",
+    "short_name": "Astrolab",
     "description": "Controls the solar/lunar map of Paris",
     "start_url": ".",
     "scope": ".",
     "display": "standalone",
-    "background_color": "#1e1e1e",
+    "background_color": "#000000",
     "theme_color": "#1e1e1e",
     "icons": [
         { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },

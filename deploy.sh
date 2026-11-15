@@ -38,9 +38,12 @@ DEPLOY_FTP_DIR="${DEPLOY_FTP_DIR:-$(env_value DEPLOY_FTP_DIR)}"
 DEPLOY_PROTO="${DEPLOY_PROTO:-$(env_value DEPLOY_PROTO)}"
 DEPLOY_PROTO="${DEPLOY_PROTO:-sftp}"
 
-# the site's files; css and js get their content hash in the name
+# the site's files
 STATIC=(index.html manifest.json .htaccess assets)
-HASHED=(css/style.css js/script.js)
+# these get their content hash in the name, so no browser can keep an old one (the server sends no
+# caching rules). In this order: a file comes after the ones it names (the manifest names the icons).
+HASHED=(assets/icon-192.png assets/icon-512.png assets/favicon.png assets/paris.jpg manifest.json css/style.css js/script.js)
+REFERRERS=(index.html manifest.json)  # where they are named
 
 DRY_RUN=0
 BUILD_ONLY=0
@@ -80,18 +83,30 @@ done
 find "${DIST_DIR}" -name .DS_Store -delete
 
 for src in "${HASHED[@]}"; do
-    hash="$(shasum -a 256 "${SRC_DIR}/${src}" | cut -c1-8)"
+    file="${DIST_DIR}/${src}"
+    if [[ ! -e "${file}" ]]; then  # css and js aren't in STATIC
+        mkdir -p "$(dirname "${file}")"
+        cp -p "${SRC_DIR}/${src}" "${file}"
+    fi
+    hash="$(shasum -a 256 "${file}" | cut -c1-8)"  # as built: the manifest already names hashed icons
     out="${src%.*}.${hash}.${src##*.}"
-    mkdir -p "${DIST_DIR}/$(dirname "${src}")"
-    cp -p "${SRC_DIR}/${src}" "${DIST_DIR}/${out}"
-    # point index.html at the hashed name; fail if it doesn't reference the file
-    grep -q "\"${src}\"" "${DIST_DIR}/index.html" || { echo "index.html doesn't reference ${src}" >&2; exit 1; }
-    sed -i '' "s#\"${src}\"#\"${out}\"#g" "${DIST_DIR}/index.html"
+    mv "${file}" "${DIST_DIR}/${out}"
+    # point every reference at the hashed name; fail if nothing references the file
+    found=0
+    for ref in "${REFERRERS[@]}"; do
+        [[ -e "${DIST_DIR}/${ref}" ]] || continue  # the manifest, once hashed itself
+        if grep -q "\"${src}\"" "${DIST_DIR}/${ref}"; then
+            sed -i '' "s#\"${src}\"#\"${out}\"#g" "${DIST_DIR}/${ref}"
+            found=1
+        fi
+    done
+    [[ "${found}" -eq 1 ]] || { echo "nothing references ${src}" >&2; exit 1; }
     log "${src} -> ${out}"
 done
 
-# the build's version, stamped into index.html and written to version.txt (see index.html)
-version="$(cat "${DIST_DIR}/index.html" "${DIST_DIR}/manifest.json" "${DIST_DIR}"/css/* "${DIST_DIR}"/js/* | shasum -a 256 | cut -c1-8)"
+# the build's version, stamped into index.html and written to version.txt (see index.html):
+# index.html names every hashed file, so any change anywhere changes it
+version="$(shasum -a 256 "${DIST_DIR}/index.html" | cut -c1-8)"
 grep -q "'BUILD'" "${DIST_DIR}/index.html" || { echo "index.html has no BUILD stamp" >&2; exit 1; }
 sed -i '' "s#'BUILD')#'${version}')#" "${DIST_DIR}/index.html"
 printf '%s\n' "${version}" > "${DIST_DIR}/version.txt"

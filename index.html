@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#1e1e1e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Celestial Map</title>
+    <title>Astrolab</title>
     <!--deploy.sh stamps BUILD with the version it uploads and puts the same into version.txt: a page
         the browser kept from an earlier version notices and loads the current one, once-->
     <script>
@@ -22,13 +22,14 @@
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="assets/favicon.png">
+    <!--no svg favicon: firefox would take it for home screen shortcuts, being "any size"-->
+    <link rel="icon" href="assets/favicon.png" sizes="32x32">
 </head>
 
 <body>
 
     <!--header-->
-    <h1>Celestial Map <span class="badge" id="status"></span></h1>
+    <h1>Astrolab <span class="badge" id="status"></span></h1>
     <div class="error" id="error" hidden></div>
 
     <form>
