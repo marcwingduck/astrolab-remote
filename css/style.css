@@ -101,6 +101,16 @@ input[type="checkbox"] {
     margin-top: 8px;
 }
 
+/* iconoir icons leave a margin inside their 24 units: drawn larger, they look as big as before */
+.mode-buttons .btn {
+    min-height: 60px;
+}
+
+.mode-buttons .btn svg {
+    width: 32px;
+    height: 32px;
+}
+
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -137,6 +147,25 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
     background: #fff;
     border: none;
+}
+
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.slider-row label {
+    flex: 0 0 5.5em;
+    color: #adb5bd;
+    font-size: 0.9rem;
+}
+
+.slider-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    margin-top: 0;
 }
 
 .map-grid {
@@ -183,7 +212,6 @@ input[type="range"]::-moz-range-thumb {
     overflow: hidden;
     background: transparent;
     cursor: pointer;
-    touch-action: none;
     width: 100%;
     height: 100%;
 }
@@ -197,18 +225,33 @@ input[type="range"]::-moz-range-thumb {
     background: #fff;
 }
 
-.side-control[data-axis="x"] .side-control-white {
+/* grows outward from the map, like the color gradient fades */
+.side-control[data-cardinal="north"] .side-control-white {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+}
+
+.side-control[data-cardinal="south"] .side-control-white {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+}
+
+.side-control[data-cardinal="east"] .side-control-white {
     top: 0;
     left: 0;
     height: 100%;
     width: 0;
 }
 
-.side-control[data-axis="y"] .side-control-white {
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 0;
+.side-control[data-cardinal="west"] .side-control-white {
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 0;
 }
 
 .side-control-color {
@@ -216,12 +259,50 @@ input[type="range"]::-moz-range-thumb {
     inset: 0;
 }
 
-.side-control input[type="color"] {
+/* white border with a black line inside it, so it shows on a white fill too */
+.side-control.selected::after {
+    content: "";
     position: absolute;
-    opacity: 0;
+    inset: 0;
+    border: 2px solid #fff;
+    box-shadow: inset 0 0 0 2px #000;
     pointer-events: none;
-    width: 0;
-    height: 0;
+}
+
+.hue-slider::-webkit-slider-runnable-track {
+    height: 12px;
+    background: linear-gradient(to right, #6c757d 0 5.3%,
+            hsl(0, 100%, 50%) 5.3%, hsl(60, 100%, 50%) 21.1%, hsl(120, 100%, 50%) 36.8%, hsl(180, 100%, 50%) 52.6%, hsl(240, 100%, 50%) 68.4%, hsl(300, 100%, 50%) 84.2%, hsl(360, 100%, 50%) 100.0%);
+}
+
+.hue-slider::-moz-range-track {
+    height: 12px;
+    background: linear-gradient(to right, #6c757d 0 5.3%,
+            hsl(0, 100%, 50%) 5.3%, hsl(60, 100%, 50%) 21.1%, hsl(120, 100%, 50%) 36.8%, hsl(180, 100%, 50%) 52.6%, hsl(240, 100%, 50%) 68.4%, hsl(300, 100%, 50%) 84.2%, hsl(360, 100%, 50%) 100.0%);
+}
+
+.white-slider::-webkit-slider-runnable-track {
+    height: 12px;
+    background: linear-gradient(to right, #000, #fff);
+}
+
+.white-slider::-moz-range-track {
+    height: 12px;
+    background: linear-gradient(to right, #000, #fff);
+}
+
+.hue-slider::-webkit-slider-thumb,
+.white-slider::-webkit-slider-thumb {
+    margin-top: -5px;
+}
+
+.error {
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: #842029;
+    font-family: monospace;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
 }
 
 .toggle-header {

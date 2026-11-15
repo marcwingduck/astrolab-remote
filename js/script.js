@@ -1,24 +1,74 @@
 var ws = null;
+var pending = [];    // sent while not connected, goes out once the board is
+var received = '';   // the board's output not yet split into lines
+var dimmerTouched = 0;  // when the brightness slider was last moved, so the board's answer doesn't undo it
+var selected = ['north', 'east', 'south', 'west'];  // the sides the hue and white sliders change
+var cardinals = ['north', 'east', 'south', 'west'];
+
+// ----------------------------------------------------------------------------
+// connection
 
 function webreplConnect(url, password) {
+    var opened = false;
     ws = new WebSocket(url);
     ws.onopen = function () {
-        ws.onmessage = function () { };
+        opened = true;
         ws.send(password + '\r\n');
         ws.send('\x03');
+        // what was clicked before the connection first, so the dimmer read back already includes it
+        pending.forEach(function (msg) { ws.send(msg); });
+        pending = [];
+        ws.send("print('DIMMER', paris.dimmer)\r\n");
         updateStatus();
     };
-    ws.onclose = function () { ws = null; updateStatus(); };
+    ws.onmessage = function (e) { if (typeof e.data === 'string') receive(e.data); };
+    ws.onclose = function () {
+        if (!opened) showError('Board not reachable at ' + url);
+        pending = [];      // not sent later, all at once: a new click reconnects
+        if (ws === this) ws = null;  // an older socket closing late leaves the new one alone
+        updateStatus();
+    };
     ws.onerror = function () { updateStatus(); };
+    updateStatus();
 }
 
-function hex2rgb(hex, w) {
-    hex = hex.slice(1);
-    var bigint = parseInt(hex, 16);
-    var r = (bigint >> 16) & 255;
-    var g = (bigint >> 8) & 255;
-    var b = bigint & 255;
-    return '(' + [g, r, b, w].join() + ')';
+function connect() {
+    if (ws) ws.close();
+    webreplConnect(document.getElementById('boardURL').value, document.getElementById('password').value);
+}
+
+// sends right away, or connects first and sends then
+function wsSend(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(msg);
+        ws.send(msg);
+    } else {
+        pending.push(msg);
+        if (!ws) connect();
+    }
+}
+
+// the board's output, line by line: errors show under the title, the dimmer goes to its slider
+function receive(text) {
+    received += text;
+    var lines = received.split(/\r?\n/);
+    received = lines.pop();
+    lines.forEach(function (line) {
+        var dimmer = line.match(/^DIMMER ([\d.]+)\s*$/);
+        if (dimmer) {
+            if (Date.now() - dimmerTouched > 3000) document.getElementById('dimmer').value = dimmer[1];
+        } else if (/^\w*(Error|Exception)\b/.test(line)) {
+            showError(line);
+        }
+    });
+}
+
+function showError(text) {
+    var el = document.getElementById('error');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(showError.timer);
+    showError.timer = setTimeout(function () { el.hidden = true; }, 10000);
 }
 
 function updateStatus() {
@@ -34,110 +84,65 @@ function updateStatus() {
     }
 }
 
-function initSideControls() {
-    document.querySelectorAll('.side-control').forEach(function (control) {
-        var cardinal = control.dataset.cardinal;
-        var axis = control.dataset.axis;
-        var colorInput = control.querySelector('input[type="color"]');
-        var whiteDiv = control.querySelector('.side-control-white');
-        var wInput = document.getElementById('w' + cardinal);
-        var dragging = false;
-        var moved = false;
-        var startX, startY;
+// ----------------------------------------------------------------------------
+// colors: a hue per side (below 0: no color) plus its white, as the strip's G, R, B, W
 
-        function updateWhite(value) {
-            wInput.value = value;
-            var pct = (value / 255) * 100 + '%';
-            if (axis === 'x') {
-                whiteDiv.style.width = pct;
-            } else {
-                whiteDiv.style.height = pct;
-            }
-        }
-
-        function getValueFromEvent(e) {
-            var rect = control.getBoundingClientRect();
-            var value;
-            if (axis === 'x') {
-                value = Math.round(((e.clientX - rect.left) / rect.width) * 255);
-            } else {
-                value = Math.round(((rect.bottom - e.clientY) / rect.height) * 255);
-            }
-            return Math.max(0, Math.min(255, value));
-        }
-
-        control.addEventListener('pointerdown', function (e) {
-            dragging = true;
-            moved = false;
-            startX = e.clientX;
-            startY = e.clientY;
-            control.setPointerCapture(e.pointerId);
-            e.preventDefault();
-        });
-
-        control.addEventListener('pointermove', function (e) {
-            if (!dragging) return;
-            var dx = e.clientX - startX;
-            var dy = e.clientY - startY;
-            if (dx * dx + dy * dy > 25) moved = true;
-            if (moved) updateWhite(getValueFromEvent(e));
-        });
-
-        control.addEventListener('pointerup', function (e) {
-            if (!moved) {
-                if (colorInput.showPicker) {
-                    colorInput.showPicker();
-                } else {
-                    colorInput.click();
-                }
-            }
-            dragging = false;
-            moved = false;
-        });
-
-        updateWhite(parseInt(wInput.value));
-    });
-}
-
-function wsSend(msg) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        console.log(msg);
-        ws.send(msg);
+function hueToRgb(h) {
+    function f(n) {
+        var k = (n + h / 60) % 6;
+        return Math.round(255 * (1 - Math.max(0, Math.min(k, 4 - k, 1))));
     }
-}
-
-function connect() {
-    if (ws) ws.close();
-    var boardURL = document.getElementById('boardURL').value;
-    var password = document.getElementById('password').value;
-    webreplConnect(boardURL, password);
-}
-
-function updateColor(object) {
-    var direction = "";
-    if (object.id === "rgbnorth") direction = "to top";
-    else if (object.id === "rgbeast") direction = "to right";
-    else if (object.id === "rgbsouth") direction = "to bottom";
-    else if (object.id === "rgbwest") direction = "to left";
-    var colorDiv = object.closest('.side-control').querySelector('.side-control-color');
-    colorDiv.style.backgroundImage = "linear-gradient(" + direction + "," + object.value + ", rgba(0,0,0,0))";
-}
-
-function powerPlug(power) {
-    var xhr = new XMLHttpRequest();
-    var url = document.getElementById('plugURL').value + 'cm?cmnd=Power ' + power;
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            document.getElementById('plugStatus').textContent = xhr.responseText;
-        }
-    };
-    xhr.open("GET", url, true);
-    xhr.send();
+    return [f(5), f(3), f(1)];
 }
 
 function getColor(cardinal) {
-    return hex2rgb(document.getElementById('rgb' + cardinal).value, parseInt(document.getElementById('w' + cardinal).value));
+    var hue = parseInt(document.getElementById('h' + cardinal).value);
+    var w = parseInt(document.getElementById('w' + cardinal).value);
+    var rgb = hue < 0 ? [0, 0, 0] : hueToRgb(hue);
+    return '(' + [rgb[1], rgb[0], rgb[2], w].join() + ')';
 }
+
+function updateColor(cardinal) {
+    var hue = parseInt(document.getElementById('h' + cardinal).value);
+    var control = document.querySelector('[data-cardinal="' + cardinal + '"]');
+    var direction = { north: 'to top', east: 'to right', south: 'to bottom', west: 'to left' }[cardinal];
+    var color = hue < 0 ? 'rgba(0,0,0,0)' : 'hsl(' + hue + ',100%,50%)';
+    control.querySelector('.side-control-color').style.backgroundImage =
+        'linear-gradient(' + direction + ',' + color + ', rgba(0,0,0,0))';
+}
+
+function setWhite(cardinal, value) {
+    var control = document.querySelector('[data-cardinal="' + cardinal + '"]');
+    document.getElementById('w' + cardinal).value = value;
+    control.querySelector('.side-control-white').style[cardinal === 'north' || cardinal === 'south' ? 'height' : 'width'] =
+        (value / 255) * 100 + '%';
+}
+
+// tapping a side toggles it for the sliders (none is fine), tapping the map selects all four
+function select(sides) {
+    selected = sides;
+    cardinals.forEach(function (c) {
+        document.querySelector('[data-cardinal="' + c + '"]').classList.toggle('selected', sides.indexOf(c) >= 0);
+    });
+    if (!sides.length) return;  // the sliders keep their position and change nothing
+    document.getElementById('hue').value = document.getElementById('h' + sides[0]).value;
+    document.getElementById('white').value = document.getElementById('w' + sides[0]).value;
+}
+
+function initSideControls() {
+    document.querySelectorAll('.side-control').forEach(function (control) {
+        var cardinal = control.dataset.cardinal;
+        control.addEventListener('click', function () {
+            var sides = cardinals.filter(function (c) { return (c === cardinal) !== (selected.indexOf(c) >= 0); });
+            select(sides);
+        });
+        setWhite(cardinal, parseInt(document.getElementById('w' + cardinal).value));
+        updateColor(cardinal);
+    });
+}
+
+// ----------------------------------------------------------------------------
+// commands
 
 // fills in the current colors, frequency and led index
 function fill(text) {
@@ -156,10 +161,11 @@ function show(name) {
     wsSend('paris.show(' + args.join(',') + ')\r\n');
 }
 
-// runs a test function, e.g. test_led(3)
+// runs a test function, e.g. test_led(3); the board loads its tests module only for this
 function parseAndExec(text) {
     wsSend('paris.stop_timer()\r\n');
-    wsSend('paris.' + fill(text) + '\r\n');
+    wsSend('import tests\r\n');
+    wsSend('tests.' + fill(text) + '\r\n');
 }
 
 function toggleCollapse(id) {
@@ -205,20 +211,18 @@ document.addEventListener('DOMContentLoaded', function () {
         show('neo', start_at_minute, two_colors, ambient);
     });
 
-    document.getElementById('btn-ambient').addEventListener('click', function () {
-        show('ambient');
-    });
-
     document.getElementById('btn-focus').addEventListener('click', function () {
         show('sides', '(0,32,127,0)', '(0,32,127,0)', '(0,0,0,127)', '(0,32,127,0)', 'False');
     });
 
+    // top to bottom, from the north color to the south color
     document.getElementById('btn-vertical').addEventListener('click', function () {
-        show('sides', getColor('north'), '(0,0,0,0)', getColor('south'), '(0,0,0,0)', 'True');
+        show('vertical_interp', getColor('north'), getColor('south'));
     });
 
-    document.getElementById('btn-horizontal').addEventListener('click', function () {
-        show('sides', '(0,0,0,0)', getColor('east'), '(0,0,0,0)', getColor('west'), 'True');
+    // top half in the north color, bottom half in the south color
+    document.getElementById('btn-halves').addEventListener('click', function () {
+        show('vertical', getColor('north'), getColor('south'));
     });
 
     document.getElementById('btn-circle').addEventListener('click', function () {
@@ -227,6 +231,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('btn-square').addEventListener('click', function () {
         show('sides', getColor('north'), getColor('east'), getColor('south'), getColor('west'), 'True');
+    });
+
+    // the whole frame in the selected side's color, brightest where the edge is nearest the center
+    document.getElementById('btn-radial').addEventListener('click', function () {
+        show('radial', getColor(selected[0] || 'north'));  // nothing selected: north, as spin
     });
 
     document.getElementById('btn-sleep').addEventListener('click', function () {
@@ -241,35 +250,34 @@ document.addEventListener('DOMContentLoaded', function () {
         show('spin', getColor('north'), parseFloat(document.getElementById('frequency').value));
     });
 
+    ['pointerdown', 'input'].forEach(function (ev) {
+        document.getElementById('dimmer').addEventListener(ev, function () { dimmerTouched = Date.now(); });
+    });
+
     document.getElementById('dimmer').addEventListener('change', function (e) {
         wsSend('paris.apply_dimmer(' + e.target.value + ')\r\n');
     });
 
     initSideControls();
 
-    ['rgbnorth', 'rgbeast', 'rgbsouth', 'rgbwest'].forEach(function (id) {
-        var picker = document.getElementById(id);
-        updateColor(picker);
-        picker.addEventListener('change', function () { updateColor(this); });
-    });
-
+    // the map selects all four sides, or none if all four already are
     document.getElementById('btn-all-color').addEventListener('click', function () {
-        document.getElementById('rgball').showPicker();
+        select(selected.length === cardinals.length ? [] : cardinals.slice());
     });
 
-    document.getElementById('rgball').addEventListener('change', function () {
-        ['north', 'east', 'south', 'west'].forEach(function (dir) {
-            var picker = document.getElementById('rgb' + dir);
-            picker.value = document.getElementById('rgball').value;
-            updateColor(picker);
-            var wInput = document.getElementById('w' + dir);
-            wInput.value = 0;
-            var whiteDiv = document.querySelector('[data-cardinal="' + dir + '"] .side-control-white');
-            if (whiteDiv) {
-                var axis = document.querySelector('[data-cardinal="' + dir + '"]').dataset.axis;
-                whiteDiv.style[axis === 'x' ? 'width' : 'height'] = '0';
-            }
+    document.getElementById('hue').addEventListener('input', function () {
+        var hue = this.value;
+        selected.forEach(function (c) {
+            document.getElementById('h' + c).value = hue;
+            updateColor(c);
         });
     });
-});
 
+    document.getElementById('white').addEventListener('input', function () {
+        var white = parseInt(this.value);
+        selected.forEach(function (c) { setWhite(c, white); });
+    });
+
+    select(cardinals.slice());
+    connect();
+});

@@ -7,8 +7,20 @@
     <meta name="theme-color" content="#1e1e1e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Paris Solar Map</title>
-    <link rel="apple-touch-icon" href="assets/favicon.png">
+    <title>Celestial Map</title>
+    <!--deploy.sh stamps BUILD with the version it uploads and puts the same into version.txt: a page
+        the browser kept from an earlier version notices and loads the current one, once-->
+    <script>
+        (function (build) {
+            if (build === 'BUILD' || location.search.indexOf('v=') >= 0) return;  // not deployed, or already reloaded
+            fetch('version.txt?' + Date.now(), { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.text() : build; })
+                .then(function (v) { v = v.trim(); if (v && v !== build) location.replace(location.pathname + '?v=' + v); })
+                .catch(function () { });
+        })('BUILD');
+    </script>
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="assets/favicon.png">
 </head>
@@ -17,6 +29,7 @@
 
     <!--header-->
     <h1>Celestial Map <span class="badge" id="status"></span></h1>
+    <div class="error" id="error" hidden></div>
 
     <form>
         <div class="input-row">
@@ -30,73 +43,113 @@
     </form>
 
     <div class="mode-buttons">
-            <button class="btn" type="button" id="btn-solunar">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l1.5 1.5a.5.5 0 0 1-.708.708L8.5 2.707V4.5a.5.5 0 0 1-1 0V2.707l-.646.647a.5.5 0 1 1-.708-.708l1.5-1.5zM2.343 4.343a.5.5 0 0 1 .707 0l1.414 1.414a.5.5 0 0 1-.707.707L2.343 5.05a.5.5 0 0 1 0-.707zm11.314 0a.5.5 0 0 1 0 .707l-1.414 1.414a.5.5 0 1 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zM11.709 11.5a4 4 0 1 0-7.418 0H.5a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1h-3.79zM0 10a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 0 10zm13 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-clock">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z" />
-                    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-clock2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-ambient">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M11.473 11a4.5 4.5 0 0 0-8.72-.99A3 3 0 0 0 3 16h8.5a2.5 2.5 0 0 0 0-5h-.027z" />
-                    <path d="M11.286 1.778a.5.5 0 0 0-.565-.755 4.595 4.595 0 0 0-3.18 5.003 5.46 5.46 0 0 1 1.055.209A3.603 3.603 0 0 1 9.83 2.617a4.593 4.593 0 0 0 4.31 5.744 3.576 3.576 0 0 1-2.241.634c.162.317.295.652.394 1a4.59 4.59 0 0 0 3.624-2.04.5.5 0 0 0-.565-.755 3.593 3.593 0 0 1-4.065-5.422z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-vertical">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M3.646 10.146a.5.5 0 0 1 .708 0L8 13.793l3.646-3.647a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 0-.708zm0-4.292a.5.5 0 0 0 .708 0L8 2.207l3.646 3.647a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 0 0 0 .708zM1 8a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13A.5.5 0 0 1 1 8z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-horizontal">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="m 5.854,3.646 a 0.5,0.5 0 0 1 0,0.708 L 2.207,8 5.854,11.646 a 0.5006316,0.5006316 0 0 1 -0.708,0.708 l -4,-4 a 0.5,0.5 0 0 1 0,-0.708 l 4,-4 a 0.5,0.5 0 0 1 0.708,0 z m 4.292,0 a 0.5,0.5 0 0 0 0,0.708 L 13.793,8 10.146,11.646 a 0.5006316,0.5006316 0 0 0 0.708,0.708 l 4,-4 a 0.5,0.5 0 0 0 0,-0.708 l -4,-4 a 0.5,0.5 0 0 0 -0.708,0 z M 8,1 a 0.5,0.5 0 0 1 0.5,0.5 v 13 a 0.5,0.5 0 0 1 -1,0 V 1.5 A 0.5,0.5 0 0 1 8,1 Z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-circle">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-square">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-larson">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M2.52 3.515A2.5 2.5 0 0 1 4.82 2h6.362c1 0 1.904.596 2.298 1.515l.792 1.848c.075.175.21.319.38.404.5.25.855.715.965 1.262l.335 1.679c.033.161.049.325.049.49v.413c0 .814-.39 1.543-1 1.997V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-1.338c-1.292.048-2.745.088-4 .088s-2.708-.04-4-.088V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-1.892c-.61-.454-1-1.183-1-1.997v-.413a2.5 2.5 0 0 1 .049-.49l.335-1.68c.11-.546.465-1.012.964-1.261a.807.807 0 0 0 .381-.404l.792-1.848ZM3 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM6 8a1 1 0 0 0 0 2h4a1 1 0 1 0 0-2H6ZM2.906 5.189a.51.51 0 0 0 .497.731c.91-.073 3.35-.17 4.597-.17 1.247 0 3.688.097 4.597.17a.51.51 0 0 0 .497-.731l-.956-1.913A.5.5 0 0 0 11.691 3H4.309a.5.5 0 0 0-.447.276L2.906 5.19Z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-spin">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
-                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-focus">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M5.04.303A.5.5 0 0 1 5.5 0h5c.2 0 .38.12.46.303l3 7a.5.5 0 0 1-.363.687h-.002c-.15.03-.3.056-.45.081a32.731 32.731 0 0 1-4.645.425V13.5a.5.5 0 1 1-1 0V8.495a32.753 32.753 0 0 1-4.645-.425c-.15-.025-.3-.05-.45-.08h-.003a.5.5 0 0 1-.362-.688l3-7Z" />
-                    <path d="M6.493 12.574a.5.5 0 0 1-.411.575c-.712.118-1.28.295-1.655.493a1.319 1.319 0 0 0-.37.265.301.301 0 0 0-.052.075l-.001.004-.004.01V14l.002.008a.147.147 0 0 0 .016.033.62.62 0 0 0 .145.15c.165.13.435.27.813.395.751.25 1.82.414 3.024.414s2.273-.163 3.024-.414c.378-.126.648-.265.813-.395a.62.62 0 0 0 .146-.15.148.148 0 0 0 .015-.033L12 14v-.004a.301.301 0 0 0-.057-.09 1.318 1.318 0 0 0-.37-.264c-.376-.198-.943-.375-1.655-.493a.5.5 0 1 1 .164-.986c.77.127 1.452.328 1.957.594C12.5 13 13 13.4 13 14c0 .426-.26.752-.544.977-.29.228-.68.413-1.116.558-.878.293-2.059.465-3.34.465-1.281 0-2.462-.172-3.34-.465-.436-.145-.826-.33-1.116-.558C3.26 14.752 3 14.426 3 14c0-.599.5-1 .961-1.243.505-.266 1.187-.467 1.957-.594a.5.5 0 0 1 .575.411Z" />
-                </svg>
-            </button>
-            <button class="btn" type="button" id="btn-sleep">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M2.23 4.35A6.004 6.004 0 0 0 2 6c0 1.691.7 3.22 1.826 4.31.203.196.359.4.453.619l.762 1.769A.5.5 0 0 0 5.5 13a.5.5 0 0 0 0 1 .5.5 0 0 0 0 1l.224.447a1 1 0 0 0 .894.553h2.764a1 1 0 0 0 .894-.553L10.5 15a.5.5 0 0 0 0-1 .5.5 0 0 0 0-1 .5.5 0 0 0 .288-.091L9.878 12H5.83l-.632-1.467a2.954 2.954 0 0 0-.676-.941 4.984 4.984 0 0 1-1.455-4.405l-.837-.836zm1.588-2.653.708.707a5 5 0 0 1 7.07 7.07l.707.707a6 6 0 0 0-8.484-8.484zm-2.172-.051a.5.5 0 0 1 .708 0l12 12a.5.5 0 0 1-.708.708l-12-12a.5.5 0 0 1 0-.708z" />
-                </svg>
-            </button>
-        </div>
+        <button class="btn" type="button" id="btn-solunar">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12,7l2.66,2.66M12,7l-2.66,2.66" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M12,12.98v-5.98" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M3,16.76c2.48,0,4.34-2.25,4.34-2.25,0,0,1.87,2.25,4.35,2.25s4.97-2.25,4.97-2.25c0,0,2.48,2.25,4.34,2.25" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M2.25,20.44c2.48,0,5.09-1.5,5.09-1.5,0,0,1.87,1.5,4.35,1.5s4.97-1.5,4.97-1.5c0,0,3.23,1.5,5.09,1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M5.27,12.44c-.17-.62-.27-1.27-.27-1.94,0-3.87,3.13-7,7-7s7,3.13,7,7c0,.67-.09,1.32-.27,1.94" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-radial" title="Radial glow in the selected side's color">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M19 19L17.5 17.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M15.5 15.5L14.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-clock">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 6L12 12L18 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-clock2">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 1.25C6.06294 1.25 1.25 6.06294 1.25 12C1.25 17.9371 6.06294 22.75 12 22.75C17.9371 22.75 22.75 17.9371 22.75 12C22.75 6.06294 17.9371 1.25 12 1.25ZM12.75 6C12.75 5.58579 12.4142 5.25 12 5.25C11.5858 5.25 11.25 5.58579 11.25 6L11.25 12C11.25 12.4142 11.5858 12.75 12 12.75H18C18.4142 12.75 18.75 12.4142 18.75 12C18.75 11.5858 18.4142 11.25 18 11.25H12.75L12.75 6Z" fill="currentColor"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-square">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 3.6V20.4C21 20.7314 20.7314 21 20.4 21H3.6C3.26863 21 3 20.7314 3 20.4V3.6C3 3.26863 3.26863 3 3.6 3H20.4C20.7314 3 21 3.26863 21 3.6Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-circle">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-vertical" title="From the north color at the top to the south color at the bottom">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20,7v-3H4v3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M20,17v3H4v-3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M12,17V7M12,17,12,17" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M12,7l2.66,2.66M12,7l-2.66,2.66" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M14.66,14.34l-2.66,2.66M9.34,14.34l2.66,2.66" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-halves" title="Top half in the north color, bottom half in the south color">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2,12h20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M20,7v-3H4v3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M20,17v3H4v-3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-larson">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="8.14" y1="14.65" x2="8.14" y2="14.05" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <line x1="10.71" y1="14.68" x2="10.71" y2="14.02" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <line x1="13.29" y1="15.17" x2="13.29" y2="13.53" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <line x1="15.86" y1="14.62" x2="15.86" y2="14.08" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M12,17.81c-2.38,0-9.09-.87-9.09-.87,0,0-.59-2.1-.66-2.59s1.37-4.31,1.61-4.63,1.09-.85,1.09-.85c0,0-.72-.34-.81-.37s.23-.58.32-.63,1.21-.08,1.21-.08c0,0,1.46-2.06,1.97-2.34s5.55-.26,4.36-.26,3.84-.03,4.36.26,1.97,2.34,1.97,2.34c0,0,1.13.04,1.21.08s.41.61.32.63-.81.37-.81.37c0,0,.85.53,1.09.85s1.69,4.14,1.61,4.63-.66,2.59-.66,2.59C21.09,16.94,14.38,17.81,12,17.81Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M4.95,8.87s4.8-.53,7.05-.53c2.25,0,7.05.53,7.05.53" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M13.28,10.42c.81.04,1.73.1,2.58.18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <line x1="2.25" y1="14.35" x2="5.25" y2="14.35" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <line x1="21.75" y1="14.35" x2="18.75" y2="14.35" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M2.25,14.35c.07.49.98,3.87.98,3.87,0,0,1.01.13,2.39.29l.22-1.21" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+                <path d="M21.75,14.35c-.07.49-.98,3.87-.98,3.87,0,0-1.01.13-2.39.29l-.22-1.21" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-spin">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21.8883 13.5C21.1645 18.3113 17.013 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C16.1006 2 19.6248 4.46819 21.1679 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M17 8H21.4C21.7314 8 22 7.73137 22 7.4V3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-focus">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.87172 3.42759L4.23172 12.2276C4.11623 12.6126 4.4045 13 4.80642 13L19.1936 13C19.5955 13 19.8838 12.6126 19.7683 12.2276L17.1283 3.42759C17.0521 3.1738 16.8185 3 16.5536 3L7.44642 3C7.18145 3 6.94786 3.1738 6.87172 3.42759Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M8 15L8 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M8 21H16M12 15L12 21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+        <button class="btn" type="button" id="btn-sleep">
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 18H15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M10 21H14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M16.4999 11.5C17.4997 10.5 17.9765 9.48689 17.9999 8C18.0479 4.95029 16 3 11.9999 3C10.8324 3 9.83119 3.16613 8.99988 3.47724" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M8.99985 15C9 13 8.5 12.5 7.49985 11.5C6.4997 10.5 6.02324 9.48689 5.99985 8C5.99142 7.46458 6.0476 6.96304 6.1676 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M3 3L21 21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+    </div>
 
-    <input type="range" id="dimmer" min="0" max="1" step="0.02" value="0.5">
+    <div class="slider-row">
+        <label for="dimmer">Brightness</label>
+        <input type="range" id="dimmer" min="0" max="1" step="0.02" value="0.5">
+    </div>
+    <!--hue of the selected sides (tap a side, or the map for all four); the gray start is no color-->
+    <div class="slider-row">
+        <label for="hue">Hue</label>
+        <input type="range" id="hue" class="hue-slider" min="-20" max="360" step="1" value="-20">
+    </div>
+    <!--white led of the selected sides-->
+    <div class="slider-row">
+        <label for="white">White</label>
+        <input type="range" id="white" class="white-slider" min="0" max="255" step="1" value="0">
+    </div>
 
     <!--image and color controls-->
     <div class="map-grid">
@@ -105,7 +158,7 @@
             <div class="side-control" data-cardinal="north" data-axis="x">
                 <div class="side-control-white"></div>
                 <div class="side-control-color"></div>
-                <input type="color" id="rgbnorth" value="#00ffff">
+                <input type="hidden" id="hnorth" value="180">
                 <input type="hidden" id="wnorth" value="0">
             </div>
         </div>
@@ -114,21 +167,20 @@
             <div class="side-control" data-cardinal="west" data-axis="y">
                 <div class="side-control-white"></div>
                 <div class="side-control-color"></div>
-                <input type="color" id="rgbwest" value="#00ff00">
+                <input type="hidden" id="hwest" value="120">
                 <input type="hidden" id="wwest" value="0">
             </div>
         </div>
         <!--image-->
         <div class="map-center">
             <img src="assets/paris.jpg" id="btn-all-color" style="cursor:pointer">
-            <input type="color" id="rgball" value="#ffffff" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
         </div>
         <!--east-->
         <div class="map-east">
             <div class="side-control" data-cardinal="east" data-axis="y">
                 <div class="side-control-white"></div>
                 <div class="side-control-color"></div>
-                <input type="color" id="rgbeast" value="#ffff00">
+                <input type="hidden" id="heast" value="60">
                 <input type="hidden" id="weast" value="0">
             </div>
         </div>
@@ -137,7 +189,7 @@
             <div class="side-control" data-cardinal="south" data-axis="x">
                 <div class="side-control-white"></div>
                 <div class="side-control-color"></div>
-                <input type="color" id="rgbsouth" value="#ff00ff">
+                <input type="hidden" id="hsouth" value="300">
                 <input type="hidden" id="wsouth" value="0">
             </div>
         </div>
@@ -197,8 +249,8 @@
         </div>
 
     </div>
-</body>
 
-<script src="js/script.js"></script>
+    <script src="js/script.js"></script>
+</body>
 
 </html>
